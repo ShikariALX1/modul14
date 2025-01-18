@@ -12,10 +12,12 @@ bot = Bot(token=api)
 dp = Dispatcher(bot, storage=MemoryStorage())
 kb = ReplyKeyboardMarkup(resize_keyboard=True,
                          keyboard=[
-                             [KeyboardButton('Рассчитать'),
-                              KeyboardButton('Информация')
+                             [KeyboardButton('🖨 Рассчитать'),
+                              KeyboardButton('🖥 Информация')
                               ],
-                             [KeyboardButton('Купить')]])
+                             [KeyboardButton('💰 Купить')],
+                             [KeyboardButton('📃 Регистрация')]
+                         ])
 
 kb1 = InlineKeyboardMarkup()
 but = InlineKeyboardButton(text='Рассчитать норму калорий', callback_data='calories')
@@ -48,7 +50,7 @@ async def start_command(message):
                          reply_markup=kb)
 
 
-@dp.message_handler(text='Рассчитать')
+@dp.message_handler(text='🖨 Рассчитать')
 async def main_menu(message):
     await message.answer('Выберите опцию:', reply_markup=kb1)
 
@@ -60,7 +62,7 @@ async def get_formulas(call):
     await call.answer()
 
 
-@dp.message_handler(text='Информация')
+@dp.message_handler(text='🖥 Информация')
 async def info(message):
     await message.answer('Программа для расчета нормы калорий')
 
@@ -72,15 +74,15 @@ async def set_age(call):
     await call.answer()
 
 
-@dp.message_handler(text='Купить')
+@dp.message_handler(text='💰 Купить')
 async def get_buying_list(message):
     for product in db:
         name = product[1]
         description = product[2]
         price = product[3]
         await message.answer(f'Название: {name} | '
-                                 f'Описание: {description} | '
-                                 f'Цена: {price}')
+                             f'Описание: {description} | '
+                             f'Цена: {price}')
 
         await message.answer_photo(photo=pics[product[0]])
     await message.answer(f'Выберите продукт для покупки:', reply_markup=kb2)
@@ -118,6 +120,48 @@ async def send_calories(message, state):
     msjw = msj - 161
     await message.answer(f'Ваша норма для мужчин: {msjm} ккал в день. '
                          f'\nВаша норма для женщин: {msjw} ккал в день.')
+    await state.finish()
+
+
+class RegistrationState(StatesGroup):
+    username = State()
+    email = State()
+    age = State()
+
+
+@dp.message_handler(text='📃 Регистрация')
+async def sing_up(message):
+    await message.answer('Введите имя пользователя (только латинский алфавит):')
+    await RegistrationState.username.set()
+
+
+@dp.message_handler(state=RegistrationState.username)
+async def set_username(message, state):
+    if not crud.is_included(message.text):
+        await state.update_data(username=message.text)
+        await message.answer('Введите свой email:')
+        await RegistrationState.email.set()
+    else:
+        await message.answer('Пользователь существует, введите другое имя.')
+        return
+
+
+@dp.message_handler(state=RegistrationState.email)
+async def set_email(message, state):
+    await state.update_data(email=message.text)
+    await message.answer('Введите свой возраст:')
+    await RegistrationState.age.set()
+
+
+@dp.message_handler(state=RegistrationState.age)
+async def set_age(message, state):
+    await state.update_data(age=message.text)
+    data = await state.get_data()
+    username = data['username']
+    email = data['email']
+    age = data['age']
+    crud.add_user(username, email, age)
+    await message.answer('Вы успешно зарегистрированы!')
     await state.finish()
 
 

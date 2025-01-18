@@ -116,7 +116,7 @@ async def send_calories(message, state):
 
 @dp.message_handler()
 async def all_messages(message):
-    print(f'Введите команду /start, чтобы начать общение.')
+    await message.answer(f'Введите команду /start, чтобы начать общение.')
 
 
 if __name__ == '__main__':
